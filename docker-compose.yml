@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  mysql-db:
+    image: mysql:8.0
+    container_name: mysql_user_db
+    ports:
+      - "3307:3306" 
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: user_service_db
+      MYSQL_USER: user_admin
+      MYSQL_PASSWORD: user_password
+    volumes:
+      - mysql-user-data:/var/lib/mysql
+
+  user_service:
+    build:
+      context: ./user_service  
+    container_name: user_service_api
+    ports:
+      - "8000:8000" 
+    environment:
+      DATABASE_URL: "mysql+pymysql://user_admin:user_password@mysql-db/user_service_db"
+      SECRET_KEY: "sklirosss" 
+      ALGORITHM: "HS256"
+      RABBITQ_HOST: "rabbitmq"
+    volumes:
+      - ./user_service:/app  
+    depends_on:
+      - mysql-db
+      - rabbitmq
+
+  mongo_db: 
+    image: mongo:latest
+    container_name: mongo_team_db 
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+      MONGO_INITDB_DATABASE: team_service_db
+    volumes:
+      - mongo_team_data:/data/db
+
+  team_service: 
+    build:
+      context: ./team_service
+    container_name: team_service_api 
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: "mongodb://root:rootpassword@mongo_db:27017/"
+      DATABASE_NAME: "team_service_db"
+      SECRET_KEY: "sklirosss"
+      ALGORITHM: "HS256"
+      RABBITMQ_HOST: "rabbitmq"
+    volumes:
+      - ./team_service:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - mongo_db 
+      - rabbitmq
+
+  task_service: 
+    build:
+      context: ./task_service
+    container_name: task_service_api 
+    ports:
+      - "8002:8000"
+    environment:
+      DATABASE_URL: "mongodb://root:rootpassword@mongo_db:27017/"
+      DATABASE_NAME: "team_service_db" 
+      SECRET_KEY: "sklirosss" 
+      ALGORITHM: "HS256"
+      RABBITMQ_HOST: "rabbitmq" 
+    volumes:
+      - ./task_service:/app
+      - task_uploads:/app/uploads 
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - mongo_db 
+      - rabbitmq
+
+  rabbitmq:
+    image: rabbitmq:3-management 
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   
+      - "15672:15672" 
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend_ui
+    ports:
+      - "5173:5173" 
+    volumes:
+      - ./frontend:/app       
+      - /app/node_modules     
+    environment:
+      - CHOKIDAR_USEPOLLING=true 
+    depends_on:
+      - user_service
+      - team_service
+      - task_service
+
+volumes:
+  mysql-user-data: 
+  mongo_team_data:
+  rabbitmq_data:
+  task_uploads:

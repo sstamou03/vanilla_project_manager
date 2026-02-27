@@ -1,0 +1,19 @@
+test users
+
+dumbldore 12345
+
+harry 12345
+
+hermione 12345
+
+ron 12345
+
+
+Crabbe 12345
+
+Draco 12345
+
+Minerva 12345
+
+
+Snape  12345
